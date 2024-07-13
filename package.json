@@ -1,0 +1,25 @@
+{
+  "name": "salesforce-eleventy-directory",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeffsikes/salesforce-eleventy-directory.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jeffsikes/salesforce-eleventy-directory/issues"
+  },
+  "homepage": "https://github.com/jeffsikes/salesforce-eleventy-directory#readme",
+  "dependencies": {
+    "@11ty/eleventy": "^2.0.1",
+    "dotenv": "^16.4.5",
+    "jsforce": "^1.11.1"
+  }
+}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Users</title>
+    <style>
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Ensure 3 columns */
+            gap: 10px; /* Space between items */
+        }
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            overflow: hidden; /* Ensure the content is clipped */
+            background-color: lightblue;
+        }
+        .user-item img {
+            margin-right: 10px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0; /* Prevent the image from shrinking */
+        }
+        .user-info {
+            min-width: 0; /* Ensures the flex item can shrink below its content's width */
+            overflow: hidden;
+        }
+        .user-info div {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #search-box {
+            margin-bottom: 20px;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+
+        .blur-text {
+            filter: blur(5px); /* Apply blur effect */
+        }
+
+        .user-link {
+            color: inherit;
+            display: block;
+            width: 100%;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        @media (max-width: 768px) {
+            .user-grid {
+                grid-template-columns: repeat(2, 1fr); /* 2 columns for medium screens */
+            }
+        }
+
+        @media (max-width: 480px) {
+            .user-grid {
+                grid-template-columns: 1fr; /* 1 column for small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Salesforce Users</h1>
+    <input type="text" id="search-box" placeholder="Search by name or email..." onkeyup="filterUsers()">
+    <div id="no-results" class="hidden">No users were found matching your criteria.</div>
+    <div class="user-grid" id="user-grid">
+        {% for user in collections.salesforceUsers %}
+            <div class="user-item">
+                {% if user.SmallPhotoUrl.length > 0 %}
+                    <img src="{{ user.SmallPhotoUrl }}" alt="Profile Image" />
+                {% endif %}
+                <div class="user-info">
+                    <a href="{{env.SF_LOGIN_URL}}/{{ user.Id }}" class="user-link">
+                     {% if user.FirstName == 'Jeff' %}
+                     <div class="user-name">
+                        {{ user.FirstName }} {{ user.LastName }}
+                    </div>
+                    {% else %}
+                     <div class="user-name blur-text">
+                        {{ user.FirstName }} {{ user.LastName }}
+                    </div>
+                    {% endif %}
+                    </a>
+                     {% if user.FirstName == 'Jeff' %}
+                        <div class="user-email">{{ user.Email }}</div>
+                    {% else %}
+                        <div class="user-email blur-text">{{ user.Email }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function filterUsers() {
+            const searchBox = document.getElementById('search-box');
+            const filter = searchBox.value.toLowerCase();
+            const userGrid = document.getElementById('user-grid');
+            const users = userGrid.getElementsByClassName('user-item');
+            let visibleCount = 0;
+
+            for (let i = 0; i < users.length; i++) {
+                const name = users[i].getElementsByClassName('user-name')[0].textContent.toLowerCase();
+                const email = users[i].getElementsByClassName('user-email')[0].textContent.toLowerCase();
+                if (name.includes(filter) || email.includes(filter)) {
+                    users[i].style.display = '';
+                    visibleCount++;
+                } else {
+                    users[i].style.display = 'none';
+                }
+            }
+
+            const noResults = document.getElementById('no-results');
+            if (visibleCount === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
