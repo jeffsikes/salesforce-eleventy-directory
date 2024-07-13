@@ -21,7 +21,7 @@ const loginToSalesforce = () => {
 const searchUsers = (lastNameInitial) => {
     return new Promise((resolve, reject) => {
         conn.query(`
-            SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User`, 
+            SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User LIMIT 100`, 
         (err, result) => {
             if (err) {
                 reject(err);
