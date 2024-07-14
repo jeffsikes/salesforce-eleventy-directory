@@ -1,4 +1,4 @@
-# Eleventy Experiement: Salesforce User Directory
+# Eleventy Experiment: Salesforce User Directory
 This is a simple experiment to see if I can use Eleventy to generate a small user directory from a Salesforce SOQL query.
 
 I'm using the [JSForce](https://jsforce.github.io/) library to connect to Salesforce and run a SOQL query to get a list of users. I'm then using Eleventy to generate a static site with the user data.
