@@ -18,7 +18,7 @@ const loginToSalesforce = () => {
     });
 };
 
-const searchUsers = (lastNameInitial) => {
+const searchUsers = () => {
     return new Promise((resolve, reject) => {
         conn.query(`
             SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User LIMIT 100`, 

@@ -8,7 +8,7 @@ module.exports = function(eleventyConfig) {
 
     eleventyConfig.addCollection("salesforceUsers", async function(collectionApi) {
         await loginToSalesforce();
-        const users = await searchUsers('S');
+        const users = await searchUsers('');
         return users;
     });
 

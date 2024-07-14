@@ -10,7 +10,7 @@
             grid-template-columns: repeat(3, 1fr); /* Ensure 3 columns */
             gap: 10px; /* Space between items */
         }
-        .user-item {
+        .h-card {
             display: flex;
             align-items: center;
             padding: 10px;
@@ -20,7 +20,7 @@
             overflow: hidden; /* Ensure the content is clipped */
             background-color: lightblue;
         }
-        .user-item img {
+        .u-photo {
             margin-right: 10px;
             border-radius: 50%;
             width: 40px;
@@ -31,7 +31,8 @@
             min-width: 0; /* Ensures the flex item can shrink below its content's width */
             overflow: hidden;
         }
-        .user-info div {
+        .p-name,
+        .p-email {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -47,30 +48,25 @@
         .hidden {
             display: none;
         }
-
         .blur-text {
             filter: blur(5px); /* Apply blur effect */
         }
-
-        .user-link {
+        .u-url {
             color: inherit;
             display: block;
             width: 100%;
         }
-
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f9f9f9;
         }
-
         @media (max-width: 768px) {
             .user-grid {
                 grid-template-columns: repeat(2, 1fr); /* 2 columns for medium screens */
             }
         }
-
         @media (max-width: 480px) {
             .user-grid {
                 grid-template-columns: 1fr; /* 1 column for small screens */
@@ -79,32 +75,24 @@
     </style>
 </head>
 <body>
-    <h1>Salesforce Users</h1>
-    <input type="text" id="search-box" placeholder="Search by name or email..." onkeyup="filterUsers()">
-    <div id="no-results" class="hidden">No users were found matching your criteria.</div>
-    <div class="user-grid" id="user-grid">
+    <h1 aria-live="assertive" aria-atomic="true">Salesforce Users</h1>
+    <input type="text" id="search-box" placeholder="Search by name or email..." onkeyup="filterUsers()" aria-label="Search by name or email">
+    <div id="no-results" class="hidden" role="alert" aria-live="assertive" aria-atomic="true">No users were found matching your criteria.</div>
+    <div class="user-grid" id="user-grid" role="list">
         {% for user in collections.salesforceUsers %}
-            <div class="user-item">
+            <div class="h-card" role="listitem">
                 {% if user.SmallPhotoUrl.length > 0 %}
-                    <img src="{{ user.SmallPhotoUrl }}" alt="Profile Image" />
+                    <img src="{{ user.SmallPhotoUrl }}" alt="Profile Image" class="u-photo" />
                 {% endif %}
                 <div class="user-info">
-                    <a href="{{env.SF_LOGIN_URL}}/{{ user.Id }}" class="user-link">
-                     {% if user.FirstName == 'Jeff' %}
-                     <div class="user-name">
+                    <a href="{{ env.SF_LOGIN_URL }}/{{ user.Id }}"
+                       class="u-url p-name{% if user.FirstName != 'Jeff' %} blur-text{% endif %}"
+                       aria-label="Profile of {{ user.FirstName }} {{ user.LastName }}">
                         {{ user.FirstName }} {{ user.LastName }}
-                    </div>
-                    {% else %}
-                     <div class="user-name blur-text">
-                        {{ user.FirstName }} {{ user.LastName }}
-                    </div>
-                    {% endif %}
                     </a>
-                     {% if user.FirstName == 'Jeff' %}
-                        <div class="user-email">{{ user.Email }}</div>
-                    {% else %}
-                        <div class="user-email blur-text">{{ user.Email }}</div>
-                    {% endif %}
+                    <div class="p-email{% if user.FirstName != 'Jeff' %} blur-text{% endif %}">
+                        {{ user.Email }}
+                    </div>
                 </div>
             </div>
         {% endfor %}
@@ -115,12 +103,12 @@
             const searchBox = document.getElementById('search-box');
             const filter = searchBox.value.toLowerCase();
             const userGrid = document.getElementById('user-grid');
-            const users = userGrid.getElementsByClassName('user-item');
+            const users = userGrid.getElementsByClassName('h-card');
             let visibleCount = 0;
 
             for (let i = 0; i < users.length; i++) {
-                const name = users[i].getElementsByClassName('user-name')[0].textContent.toLowerCase();
-                const email = users[i].getElementsByClassName('user-email')[0].textContent.toLowerCase();
+                const name = users[i].getElementsByClassName('p-name')[0].textContent.toLowerCase();
+                const email = users[i].getElementsByClassName('p-email')[0].textContent.toLowerCase();
                 if (name.includes(filter) || email.includes(filter)) {
                     users[i].style.display = '';
                     visibleCount++;
@@ -131,8 +119,10 @@
 
             const noResults = document.getElementById('no-results');
             if (visibleCount === 0) {
+                noResults.textContent = "No users were found matching your criteria.";
                 noResults.classList.remove('hidden');
             } else {
+                noResults.textContent = "";
                 noResults.classList.add('hidden');
             }
         }
