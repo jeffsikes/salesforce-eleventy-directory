@@ -27,7 +27,9 @@ You'll need some information from your Salesforce instance to get started.
 |Salesforce Security Token | A security token for the Salesforce user. If you already have one, great! If not, follow the directions below. |
 
 ### Getting a Salesforce Security Token
-Logging into Salesforce with the username you chose, clicking on your profile picture, and selecting "Settings". From there, click on "Reset My Security Token". You'll receive an email with the token. It took about 5 minutes to get mine.
+You may have already generated a security token. If you have it, use it! 
+
+Otherwise, login into Salesforce with the username you chose, clicking on your profile picture, and selecting "Settings". From there, click on "Reset My Security Token". You'll receive an email with the token. It took about 5 minutes to get mine. Make sure to store it somewhere safe, because you can't see it again.
 
 Your username, password and token should be stored in a `.env` file in the root of the project. Here's what mine looks like:
 
