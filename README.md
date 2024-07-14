@@ -31,6 +31,8 @@ You may have already generated a security token. If you have it, use it!
 
 Otherwise, login into Salesforce with the username you chose, clicking on your profile picture, and selecting "Settings". From there, click on "Reset My Security Token". You'll receive an email with the token. It took about 5 minutes to get mine. Make sure to store it somewhere safe, because you can't see it again.
 
+Note that if you ever reset your password, the security token will be reset as well. This isn't the best route for production, but it's fine for this experiment.
+
 Your username, password and token should be stored in a `.env` file in the root of the project. Here's what mine looks like:
 
 ```
