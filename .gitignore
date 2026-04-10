@@ -16,6 +16,9 @@ site/
 _build/
 _output/
 
+# Downloaded Salesforce profile images
+src/img/profiles/
+
 # OS generated files
 .DS_Store
 Thumbs.db

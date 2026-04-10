@@ -4,11 +4,14 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 module.exports = function(eleventyConfig) {
-    eleventyConfig.addGlobalData("env", process.env);
+    eleventyConfig.addGlobalData("env", {
+        SF_LOGIN_URL: process.env.SF_LOGIN_URL
+    });
+    eleventyConfig.addPassthroughCopy("src/img");
 
     eleventyConfig.addCollection("salesforceUsers", async function(collectionApi) {
-        await loginToSalesforce();
-        const users = await searchUsers('');
+        const userInfo = await loginToSalesforce();
+        const users = await searchUsers(userInfo.id);
         return users;
     });
 

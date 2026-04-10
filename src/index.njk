@@ -81,16 +81,16 @@
     <div class="user-grid" id="user-grid" role="list">
         {% for user in collections.salesforceUsers %}
             <div class="h-card" role="listitem">
-                {% if user.SmallPhotoUrl.length > 0 %}
-                    <img src="{{ user.SmallPhotoUrl }}" alt="Profile Image" class="u-photo" />
+                {% if user.LocalPhotoUrl %}
+                    <img src="{{ user.LocalPhotoUrl }}" alt="Profile Image" class="u-photo{% if not user.isAuthenticatedUser %} blur-text{% endif %}" />
                 {% endif %}
                 <div class="user-info">
                     <a href="{{ env.SF_LOGIN_URL }}/{{ user.Id }}"
-                       class="u-url p-name{% if user.FirstName != 'Jeff' %} blur-text{% endif %}"
+                       class="u-url p-name{% if not user.isAuthenticatedUser %} blur-text{% endif %}"
                        aria-label="Profile of {{ user.FirstName }} {{ user.LastName }}">
                         {{ user.FirstName }} {{ user.LastName }}
                     </a>
-                    <div class="p-email{% if user.FirstName != 'Jeff' %} blur-text{% endif %}">
+                    <div class="p-email{% if not user.isAuthenticatedUser %} blur-text{% endif %}">
                         {{ user.Email }}
                     </div>
                 </div>

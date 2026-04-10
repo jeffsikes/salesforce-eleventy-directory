@@ -18,8 +18,8 @@
   },
   "homepage": "https://github.com/jeffsikes/salesforce-eleventy-directory#readme",
   "dependencies": {
-    "@11ty/eleventy": "^2.0.1",
+    "@11ty/eleventy": "^3.1.5",
     "dotenv": "^16.4.5",
-    "jsforce": "^1.11.1"
+    "jsforce": "^3.10.14"
   }
 }
