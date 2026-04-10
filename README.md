@@ -3,7 +3,7 @@ This is a simple experiment to see if I can use Eleventy to generate a small use
 
 I'm using the [JSForce](https://jsforce.github.io/) library to connect to Salesforce and run a SOQL query to get a list of users. I'm then using Eleventy to generate a static site with the user data.
 
-> I used JSForce 2.0 for this experiment. It looks like JSForce 3.0 is coming out soon, so I'll have to update this when it's released.
+> This project now uses JSForce 3.x.
 
 Obviously not a real-world use case, but it's a fun experiment to see how Eleventy can be used to generate static sites from Salesforce data.
 
@@ -50,35 +50,40 @@ There's only a few main functions for this project:
 ### Logging into Salesforce
 The `loginToSalesforce` function uses the `jsforce` library to log into Salesforce. It uses the `SF_USERNAME`, `SF_PASSWORD`, and `SF_TOKEN` environment variables to authenticate.
 
-Here's the related code. JSForce makes it fairly simple. Note that I'm using V2.0 of JSForce, but it looks like V3.0 is coming out very soon.
+Here's the related code. JSForce makes it fairly simple.
 
 ```javascript
-const loginToSalesforce = () => {
-    return conn.login(process.env.SF_USERNAME, process.env.SF_PASSWORD + process.env.SF_TOKEN, (err, userInfo) => {
-        if (err) {
-            return console.error(err);
-        }
-        console.log("User ID: " + userInfo.id);
-        console.log("Org ID: " + userInfo.organizationId);
-    });
+const loginToSalesforce = async () => {
+    const userInfo = await conn.login(
+        process.env.SF_USERNAME,
+        process.env.SF_PASSWORD + process.env.SF_TOKEN
+    );
+    console.log("User ID: " + userInfo.id);
+    console.log("Org ID: " + userInfo.organizationId);
+    return userInfo;
 };
 ```
 
 ### Searching Salesforce with SOQL + JSForce
-The `searchUsers` function uses the `query` method from the `jsforce` library to run a SOQL query against Salesforce. The query is simple: `SELECT Id, FirstName, LastName, Email, SmallPhotoUrl`. This returns a list of users with their ID, Name, Title, Email and Profile Photo if it exists.
+The `searchUsers` function uses the `query` method from the `jsforce` library to run a SOQL query against Salesforce. The query pulls active users with their ID, Name, Email and Profile Photo. Profile photos are downloaded locally during build using the authenticated session, since Salesforce requires auth to serve them.
 
 ```javascript
-const searchUsers = (lastNameInitial) => {
-    return new Promise((resolve, reject) => {
-        conn.query(`
-            SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User LIMIT 100`, 
-        (err, result) => {
-            if (err) {
-                reject(err);
-            }
-            resolve(result.records);
-        });
-    });
+const searchUsers = async (authenticatedUserId) => {
+    const result = await conn.query(
+        'SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User WHERE IsActive = true LIMIT 100'
+    );
+
+    const authId15 = authenticatedUserId.substring(0, 15);
+
+    for (const user of result.records) {
+        user.isAuthenticatedUser = user.Id.substring(0, 15) === authId15;
+        if (user.SmallPhotoUrl) {
+            const localPath = await downloadPhoto(user.SmallPhotoUrl, user.Id);
+            user.LocalPhotoUrl = localPath;
+        }
+    }
+
+    return result.records;
 };
 ```
 
@@ -89,11 +94,14 @@ Here's the core of the Eleventy config file. It adds the Salesforce users to the
 
 ```javascript
 module.exports = function(eleventyConfig) {
-    eleventyConfig.addGlobalData("env", process.env);
+    eleventyConfig.addGlobalData("env", {
+        SF_LOGIN_URL: process.env.SF_LOGIN_URL
+    });
+    eleventyConfig.addPassthroughCopy("src/img");
 
     eleventyConfig.addCollection("salesforceUsers", async function(collectionApi) {
-        await loginToSalesforce();
-        const users = await searchUsers();
+        const userInfo = await loginToSalesforce();
+        const users = await searchUsers(userInfo.id);
         return users;
     });
 
@@ -107,7 +115,7 @@ module.exports = function(eleventyConfig) {
 ```
 
 ### The HTML Template
-The `index.njk` file is the template for the user directory. It's a simple list of users with their name, title, email and profile photo. I'm using the `SmallPhotoUrl` field from Salesforce to display the profile photo.
+The `index.njk` file is the template for the user directory. It's a simple list of users with their name, email and profile photo. Profile images are served from locally downloaded copies.
 
 I'm a big fan of [microformats](https://developer.mozilla.org/en-US/docs/Web/HTML/microformats), so I've added some basic h-card markup to the user list. This is a simple way to add some semantic meaning to the user data. You can also use these to style the user list with CSS.
 
@@ -157,7 +165,7 @@ function filterUsers() {
 ### The CSS
 I used flex grid to layout the user list. It's simple and works well for this use case.
 
-You may notice that I'm using a `blur-text` class. Because I wanted to demo this publicly with screenshots and video, I've blurred out the user data for everyone but myself. This is a simple way to do it with CSS.
+You may notice that I'm using a `blur-text` class. Because I wanted to demo this publicly with screenshots and video, I've blurred out the user data for everyone except the authenticated user (determined by the credentials in `.env`). This is a simple way to do it with CSS.
 
 ```css
     .blur-text {
@@ -180,6 +188,4 @@ npx eleventy --serve
 ```
 
 ## Known Issues
-When running locally, profile images may not appear. Images are loaded on SSL from Salesforce, but locally I'm running on HTTP. A work around would be to download all profile images and host them locally. 
-
-Note that it works in Edge, but not in Chrome or Firefox.
+None at this time. Profile images are now downloaded during build and served locally, resolving the previous SSL/CORS issues.
