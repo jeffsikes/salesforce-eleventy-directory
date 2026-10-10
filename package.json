@@ -20,6 +20,6 @@
   "dependencies": {
     "@11ty/eleventy": "^3.1.5",
     "dotenv": "^16.4.5",
-    "jsforce": "^3.10.14"
+    "jsforce": "^3.10.29"
   }
 }
