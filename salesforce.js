@@ -1,21 +1,58 @@
 // salesforce.js
-const jsforce = require('jsforce');
 const fs = require('fs');
 const path = require('path');
 try { process.loadEnvFile(); } catch { /* no .env file, use real environment */ }
 
-const conn = new jsforce.Connection({
-    loginUrl: process.env.SF_LOGIN_URL
-});
+// Session state set by loginToSalesforce
+const session = { accessToken: null, instanceUrl: null, apiVersion: null };
 
+// OAuth 2.0 client credentials flow (Connected App / External Client App)
 const loginToSalesforce = async () => {
-    const userInfo = await conn.login(
-        process.env.SF_USERNAME,
-        process.env.SF_PASSWORD + process.env.SF_TOKEN
-    );
-    console.log("User ID: " + userInfo.id);
-    console.log("Org ID: " + userInfo.organizationId);
-    return userInfo;
+    const response = await fetch(`${process.env.SF_LOGIN_URL}/services/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: process.env.SF_CLIENT_ID,
+            client_secret: process.env.SF_CLIENT_SECRET
+        })
+    });
+    if (!response.ok) {
+        throw new Error(`Salesforce login failed: ${response.status} ${await response.text()}`);
+    }
+    const token = await response.json();
+    session.accessToken = token.access_token;
+    session.instanceUrl = token.instance_url;
+
+    // Use the newest REST API version the org supports
+    const versions = await sfGet('/services/data');
+    session.apiVersion = 'v' + versions[versions.length - 1].version;
+
+    // The identity URL ends in /{orgId}/{userId}
+    const [orgId, userId] = token.id.split('/').slice(-2);
+    console.log("User ID: " + userId);
+    console.log("Org ID: " + orgId);
+    return { id: userId, organizationId: orgId };
+};
+
+const sfGet = async (pathAndQuery) => {
+    const response = await fetch(`${session.instanceUrl}${pathAndQuery}`, {
+        headers: { 'Authorization': `Bearer ${session.accessToken}` }
+    });
+    if (!response.ok) {
+        throw new Error(`Salesforce request failed: ${response.status} ${await response.text()}`);
+    }
+    return response.json();
+};
+
+const query = async (soql) => {
+    let result = await sfGet(`/services/data/${session.apiVersion}/query?q=${encodeURIComponent(soql)}`);
+    const records = [...result.records];
+    while (!result.done) {
+        result = await sfGet(result.nextRecordsUrl);
+        records.push(...result.records);
+    }
+    return records;
 };
 
 // Download a profile photo using the authenticated session cookie
@@ -29,7 +66,7 @@ const downloadPhoto = async (photoUrl, userId) => {
     // Use the authenticated session to fetch the image
     const response = await fetch(photoUrl, {
         headers: {
-            'Authorization': `Bearer ${conn.accessToken}`
+            'Authorization': `Bearer ${session.accessToken}`
         },
         redirect: 'follow'
     });
@@ -45,7 +82,7 @@ const downloadPhoto = async (photoUrl, userId) => {
 };
 
 const searchUsers = async (authenticatedUserId) => {
-    const result = await conn.query(
+    const records = await query(
         'SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User WHERE IsActive = true LIMIT 100'
     );
 
@@ -53,7 +90,7 @@ const searchUsers = async (authenticatedUserId) => {
     const authId15 = authenticatedUserId.substring(0, 15);
 
     // Download profile photos and flag the authenticated user
-    for (const user of result.records) {
+    for (const user of records) {
         user.isAuthenticatedUser = user.Id.substring(0, 15) === authId15;
         if (user.SmallPhotoUrl) {
             const localPath = await downloadPhoto(user.SmallPhotoUrl, user.Id);
@@ -61,7 +98,7 @@ const searchUsers = async (authenticatedUserId) => {
         }
     }
 
-    return result.records;
+    return records;
 };
 
 module.exports = { loginToSalesforce, searchUsers };

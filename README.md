@@ -1,9 +1,9 @@
 # Eleventy Experiment: Salesforce User Directory
 This is a simple experiment to see if I can use Eleventy to generate a small user directory from a Salesforce SOQL query.
 
-I'm using the [JSForce](https://jsforce.github.io/) library to connect to Salesforce and run a SOQL query to get a list of users. I'm then using Eleventy to generate a static site with the user data.
+I'm using plain `fetch` and the Salesforce REST API to log in and run a SOQL query to get a list of users. I'm then using Eleventy to generate a static site with the user data.
 
-> This project now uses JSForce 3.x.
+> This project used to use JSForce. I replaced it with `fetch` and an OAuth client credentials login, which cut the install from about 236 packages to about 130.
 
 Obviously not a real-world use case, but it's a fun experiment to see how Eleventy can be used to generate static sites from Salesforce data.
 
@@ -11,7 +11,7 @@ Obviously not a real-world use case, but it's a fun experiment to see how Eleven
 I wanted to keep things simple, so I'm using very limited dependencies. Here's what you need to get started:
 
 1. Install [Node.js](https://nodejs.org/) 20.12 or newer (it has built-in `.env` loading, so no dotenv needed)
-2. Clone this repo and run `npm install`. That pulls in [Eleventy](https://www.11ty.dev/) and [JSForce](https://github.com/jsforce/) locally.
+2. Clone this repo and run `npm install`. That pulls in [Eleventy](https://www.11ty.dev/), which is the only dependency.
 
 I decided against using a CSS framework for simplicity. If I did use one, tho, for these little lab experiments I'd probably use [Pico.css](https://picocss.com/).
 
@@ -21,24 +21,27 @@ You'll need some information from your Salesforce instance to get started.
 | Required Fields | Description |
 |-----------------|-------------|
 |Salesforce URL | The URL for your Salesforce instance. For example, `https://mycompany.my.salesforce.com`. |
-|Salesforce Username | A Salesforce username that has API access (will explain how to get this later). For production, you should create a dedicated user for this. |
-|Salesforce Password | The password for the Salesforce user. |
-|Salesforce Security Token | A security token for the Salesforce user. If you already have one, great! If not, follow the directions below. |
+|Salesforce Client ID | The Consumer Key from an External Client App you create (steps below). |
+|Salesforce Client Secret | The Consumer Secret from the same app. |
 
-### Getting a Salesforce Security Token
-You may have already generated a security token. If you have it, use it! 
+### Creating an External Client App
+Salesforce no longer lets you create new Connected Apps, so this uses an External Client App with the OAuth client credentials flow. No password or security token needed.
 
-Otherwise, login into Salesforce with the username you chose, clicking on your profile picture, and selecting "Settings". From there, click on "Reset My Security Token". You'll receive an email with the token. It took about 5 minutes to get mine. Make sure to store it somewhere safe, because you can't see it again.
+1. In Setup, open App Manager and click **New External Client App**. Give it a name, a contact email, and set distribution state to **Local**.
+2. Under **API (Enable OAuth Settings)**, check **Enable OAuth**, and use `https://localhost` as the callback URL (required by the form, never used).
+3. Add the **Manage user data via APIs (api)** scope.
+4. Check **Enable Client Credentials Flow** and accept the warning. Create the app.
+5. On the app's **Policies** tab, edit the OAuth policies, enable the client credentials flow, and set **Run As** to the user the app should act as. That user needs API access and permission to read User records. For production, use a dedicated integration user.
+6. On the **Settings** tab, open OAuth Settings and click **Consumer Key and Secret**. Salesforce may email you a verification code first.
 
-Note that if you ever reset your password, the security token will be reset as well. This isn't the best route for production, but it's fine for this experiment.
+The app can take a few minutes to start working after you create it.
 
-Your username, password and token should be stored in a `.env` file in the root of the project. Here's what mine looks like:
+Your URL, client ID and client secret go in a `.env` file in the root of the project. The URL needs to be your My Domain URL with no trailing slash, since the client credentials flow doesn't work against `login.salesforce.com`. Here's what mine looks like:
 
 ```
-SF_LOGIN_URL={your Salesforce URL}
-SF_USERNAME={your Salesforce username}
-SF_PASSWORD={your Salesforce password}
-SF_TOKEN={your Salesforce security token}
+SF_LOGIN_URL={your My Domain URL}
+SF_CLIENT_ID={your consumer key}
+SF_CLIENT_SECRET={your consumer secret}
 ```
 
 This information will not be included in the final published website. It's only used to generate the user directory data during build.
@@ -47,34 +50,35 @@ This information will not be included in the final published website. It's only 
 There's only a few main functions for this project:
 
 ### Logging into Salesforce
-The `loginToSalesforce` function uses the `jsforce` library to log into Salesforce. It uses the `SF_USERNAME`, `SF_PASSWORD`, and `SF_TOKEN` environment variables to authenticate.
-
-Here's the related code. JSForce makes it fairly simple.
+The `loginToSalesforce` function posts to the Salesforce token endpoint using the OAuth client credentials flow. It uses the `SF_CLIENT_ID` and `SF_CLIENT_SECRET` environment variables, then asks the org which REST API version is newest and uses that.
 
 ```javascript
 const loginToSalesforce = async () => {
-    const userInfo = await conn.login(
-        process.env.SF_USERNAME,
-        process.env.SF_PASSWORD + process.env.SF_TOKEN
-    );
-    console.log("User ID: " + userInfo.id);
-    console.log("Org ID: " + userInfo.organizationId);
-    return userInfo;
+    const response = await fetch(`${process.env.SF_LOGIN_URL}/services/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: process.env.SF_CLIENT_ID,
+            client_secret: process.env.SF_CLIENT_SECRET
+        })
+    });
+    // ...store the access token and instance URL, pick the newest API version
 };
 ```
 
-### Searching Salesforce with SOQL + JSForce
-The `searchUsers` function uses the `query` method from the `jsforce` library to run a SOQL query against Salesforce. The query pulls active users with their ID, Name, Email and Profile Photo. Profile photos are downloaded locally during build using the authenticated session, since Salesforce requires auth to serve them.
+### Searching Salesforce with SOQL
+The `searchUsers` function runs a SOQL query through a small `query` helper that calls the REST API and follows `nextRecordsUrl` for paging. The query pulls active users with their ID, Name, Email and Profile Photo. Profile photos are downloaded locally during build using the access token, since Salesforce requires auth to serve them.
 
 ```javascript
 const searchUsers = async (authenticatedUserId) => {
-    const result = await conn.query(
+    const records = await query(
         'SELECT Id, FirstName, LastName, Email, SmallPhotoUrl FROM User WHERE IsActive = true LIMIT 100'
     );
 
     const authId15 = authenticatedUserId.substring(0, 15);
 
-    for (const user of result.records) {
+    for (const user of records) {
         user.isAuthenticatedUser = user.Id.substring(0, 15) === authId15;
         if (user.SmallPhotoUrl) {
             const localPath = await downloadPhoto(user.SmallPhotoUrl, user.Id);
@@ -82,7 +86,7 @@ const searchUsers = async (authenticatedUserId) => {
         }
     }
 
-    return result.records;
+    return records;
 };
 ```
 
