@@ -1,9 +1,8 @@
 // salesforce.js
 const jsforce = require('jsforce');
-const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
-dotenv.config();
+try { process.loadEnvFile(); } catch { /* no .env file, use real environment */ }
 
 const conn = new jsforce.Connection({
     loginUrl: process.env.SF_LOGIN_URL

@@ -1,7 +1,5 @@
 const { loginToSalesforce, searchUsers } = require('./salesforce');
-const dotenv = require('dotenv');
 
-dotenv.config();
 
 module.exports = function(eleventyConfig) {
     eleventyConfig.addGlobalData("env", {

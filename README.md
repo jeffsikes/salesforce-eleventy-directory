@@ -10,9 +10,8 @@ Obviously not a real-world use case, but it's a fun experiment to see how Eleven
 ## Project Setup
 I wanted to keep things simple, so I'm using very limited dependencies. Here's what you need to get started:
 
-1. Install [Node.js](https://nodejs.org/) (I'm using v18.20.2)
-2. Install [Eleventy](https://www.11ty.dev/): `npm install -g @11ty/eleventy`
-3. Install [JSForce](https://github.com/jsforce/): `npm install jsforce`
+1. Install [Node.js](https://nodejs.org/) 20.12 or newer (it has built-in `.env` loading, so no dotenv needed)
+2. Clone this repo and run `npm install`. That pulls in [Eleventy](https://www.11ty.dev/) and [JSForce](https://github.com/jsforce/) locally.
 
 I decided against using a CSS framework for simplicity. If I did use one, tho, for these little lab experiments I'd probably use [Pico.css](https://picocss.com/).
 
@@ -184,7 +183,7 @@ In addition, I attempted to make the site [voiceover accessible](https://www.boc
 To run the project, you'll need to exceute the following command at the terminal:
 
 ```
-npx eleventy --serve
+npm start
 ```
 
 ## Known Issues
